@@ -1,56 +1,98 @@
-import React from "react";
-import _ from "lodash";
-import { connect } from "react-redux";
+import {useEffect, useState} from "react";
+import axios from "axios";
+import {useLocation} from "react-router-dom"
 
-import { setUser, setUserActivities } from "../actions";
-import {
-    cleanUpAuthToken,
-    testAuthGetter,
-    getUserData,
-} from "../utils/functions";
 
-class StravaRedirect extends React.Component {
-    componentDidMount() {
-        const authenticate = async () => {
-            const { history, location } = this.props;
-            try {
-                // If not redirected to Strava, return to home
-                if (_.isEmpty(location)) {
-                    return history.push("/");
+function YourDistance (){
+
+    const location = useLocation()
+
+    function cleanUpAuthToken (str)  {
+        return str.split("&")[1].slice(5);
+    }
+
+
+
+
+    async function testAuthGetter (authTok) {
+        try {
+            const response = await axios.post(
+                `https://www.strava.com/api/v3/oauth/token?client_id=64170&client_secret=3ff187481c800d50cab4c77eaf228aeffa0d7d10&code=${authTok}&grant_type=authorization_code`
+            );
+            console.log("response", response)
+            return response.data;
+        } catch (error) {
+            console.log(error);
+        }
+    };
+
+    // get mogen samen
+
+    async function fetchUserProfile(accestoken) {
+                try {
+                    const result = await axios.get(`https://www.strava.com/api/v3/athlete?access_token=${accestoken}`)
+                    console.log("is dit result", result.data)
+
+                    //return data
+                    // variable const
+
+                } catch (e) {
+                    console.error(e)
+
                 }
-
-                // Save the Auth Token to the Store (it's located under 'search' for some reason)
-                const stravaAuthToken = cleanUpAuthToken(location.search);
-
-                // Post Request to Strava (with AuthToken) which returns Refresh Token and and Access Token
-                const tokens = await testAuthGetter(stravaAuthToken);
-                this.props.setUser(tokens);
-                const accessToken = tokens.access_token;
-                const userID = tokens.athlete.id;
-
-                // Axios request to get users info
-                const user = await getUserData(userID, accessToken);
-                this.props.setUserActivities(user);
-
-                // Once complete, go to display page
-                history.push("/yourdistance");
-            } catch (error) {
-                history.push("/");
             }
-        };
-        authenticate();
+
+    async function fetchUserActivities(accestoken) {
+        try {
+            const result = await axios.get(`https://www.strava.com/api/v3/athlete/activities?access_token=${accestoken}&per_page=200`)
+            console.log("is dit result", result.data)
+
+        } catch (e) {
+            console.error(e)
+
+        }
     }
 
-    render() {
-        return <div>Loading</div>;
-    }
-}
+    useEffect(() => {
 
-const mapStateToProps = (state) => {
-    return { authTokenURL: state.authTokenURL };
+        async function fetchData() {
+
+            try {
+                // Haal eerst de accesstoken op
+                // eslint-disable-next-line no-restricted-globals
+
+                console.log("location???", location)
+                const stravaAuthToken = cleanUpAuthToken(location.search)
+                console.log("stravaAuthToken", stravaAuthToken)
+                // setAutToken
+                const responseTokens = await testAuthGetter(stravaAuthToken);
+                console.log("responseTokens", responseTokens)
+
+                //@todo hier gaat het fout met opslaan
+                const accesToken = responseTokens.access_token;
+                console.log("accesToken", accesToken)
+                const profile = fetchUserProfile(accesToken)
+                //set state met activities en profile data
+                console.log("profile", profile.username)
+                const activities = fetchUserActivities(accesToken)
+                console.log("activities", activities)
+
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        fetchData()
+    }, []);
+
+
+
+
+
+    return (
+        <div>
+            <h1>StravaRedirect</h1>
+        </div>
+    );
 };
 
-export default connect(mapStateToProps, {
-    setUserActivities,
-    setUser,
-})(StravaRedirect);
+export default YourDistance
